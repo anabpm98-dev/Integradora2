@@ -23,6 +23,9 @@ const filterButtons = document.querySelectorAll('.filters__btn');
 
 const PRIORITY_LABELS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 const PRIORITY_WEIGHT = { alta: 3, media: 2, baja: 1 };
+const STORAGE_KEY = 'taskmanager.tasks';
+const API_URL = 'https://jsonplaceholder.typicode.com/todos?_limit=10';
+const notification = document.getElementById('notification');
 
 // Validación
 function validateTask(title, priority) {
@@ -53,6 +56,7 @@ function createTask(title, priority) {
         createdAt: new Date().toISOString()
     };
     tasks.unshift(task);
+    saveTasks();
 }
 
 function updateTask(id, title, priority) {
@@ -60,17 +64,20 @@ function updateTask(id, title, priority) {
     if (task) {
         task.title = title;
         task.priority = priority;
+        saveTasks();
     }
 }
 
 function deleteTask(id) {
     tasks = tasks.filter(t => t.id !== id);
+    saveTasks();
 }
 
 function toggleTask(id) {
     const task = tasks.find(t => t.id === id);
     if (task) {
         task.completed = !task.completed;
+        saveTasks();
     }
 }
 
@@ -262,5 +269,103 @@ filterButtons.forEach(button => {
     });
 });
 
+// Notificaciones
+let notificationTimer = null;
+
+function showNotification(message, persistent = false) {
+    notification.textContent = message;
+    notification.classList.remove('hidden');
+    clearTimeout(notificationTimer);
+    if (!persistent) {
+        notificationTimer = setTimeout(hideNotification, 10000);
+    }
+}
+
+function hideNotification() {
+    clearTimeout(notificationTimer);
+    notification.classList.add('hidden');
+}
+
+// LocalStorage
+function saveTasks() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch (error) {
+        showNotification('No se pudieron guardar los cambios en el navegador.');
+    }
+}
+
+function loadTasks() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw === null) return null;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        showNotification('Los datos guardados estaban dañados y se reiniciaron.');
+        return [];
+    }
+}
+
+// Consumo de la API
+async function fetchTasksFromApi() {
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+        throw new Error('Error del servidor: ' + response.status);
+    }
+
+    const todos = await response.json();
+    const priorities = ['alta', 'media', 'baja'];
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    return todos.map((todo, index) => ({
+        id: todo.id,
+        title: todo.title,
+        priority: priorities[index % 3],
+        completed: todo.completed,
+        createdAt: new Date(Date.now() - index * ONE_DAY).toISOString()
+    }));
+}
+
+let apiLoadPending = false;
+
+async function loadFromApi() {
+    try {
+        const apiTasks = await fetchTasksFromApi();
+        tasks = tasks.concat(apiTasks);
+        saveTasks();
+        apiLoadPending = false;
+        hideNotification();
+    } catch (error) {
+        apiLoadPending = true;
+        showNotification(
+            'No se pudieron cargar las tareas desde el servidor. ' +
+            'Puedes trabajar sin conexión; se reintentará al recuperar la red.',
+            true
+        );
+    }
+    renderTasks();
+}
+
+async function init() {
+    const stored = loadTasks();
+
+    if (stored !== null) {
+        tasks = stored;
+        renderTasks();
+        return;
+    }
+
+    renderTasks();
+    await loadFromApi();
+}
+
+window.addEventListener('online', () => {
+    if (apiLoadPending) {
+        loadFromApi();
+    }
+});
+
+
 // Inicio
-renderTasks();
+init();
