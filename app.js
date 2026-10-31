@@ -4,6 +4,8 @@ let editingId = null;
 let currentFilter = 'all';
 let searchTerm = '';
 let sortMode = 'date-newest';
+let currentPage = 1;
+let apiLoadPending = false;
 
 // Referencias al DOM
 const taskForm = document.getElementById('task-form');
@@ -20,12 +22,22 @@ const statCompleted = document.getElementById('stat-completed');
 const searchInput = document.getElementById('search-input');
 const sortSelect = document.getElementById('sort-select');
 const filterButtons = document.querySelectorAll('.filters__btn');
+const notification = document.getElementById('notification');
+const pagination = document.getElementById('pagination');
+const pageInfo = document.getElementById('page-info');
+const prevBtn = document.getElementById('page-prev');
+const nextBtn = document.getElementById('page-next');
 
+// Constantes
+// ===== Constantes =====
 const PRIORITY_LABELS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 const PRIORITY_WEIGHT = { alta: 3, media: 2, baja: 1 };
 const STORAGE_KEY = 'taskmanager.tasks';
-const API_URL = 'https://jsonplaceholder.typicode.com/todos?_limit=10';
-const notification = document.getElementById('notification');
+const VERSION_KEY = 'taskmanager.version';
+const DATA_VERSION = '2';
+const API_URL = 'https://jsonplaceholder.typicode.com/todos?_limit=50';
+const PAGE_SIZE = 10;
+const TASKS_CHANGED = 'tasks:changed';
 
 // Validación
 function validateTask(title, priority) {
@@ -46,6 +58,33 @@ function clearFormError() {
     formError.textContent = '';
 }
 
+// Patrón Observador
+function emitTasksChanged(action) {
+    const completed = tasks.filter(t => t.completed).length;
+
+    document.dispatchEvent(new CustomEvent(TASKS_CHANGED, {
+        detail: {
+            action: action,
+            total: tasks.length,
+            completed: completed,
+            pending: tasks.length - completed
+        }
+    }));
+}
+
+// Observador 1: dashboard de métricas
+document.addEventListener(TASKS_CHANGED, event => {
+    const { total, pending, completed } = event.detail;
+    statTotal.textContent = total;
+    statPending.textContent = pending;
+    statCompleted.textContent = completed;
+});
+
+// Observador 2: lista de tareas
+document.addEventListener(TASKS_CHANGED, () => {
+    renderTasks();
+});
+
 // CRUD
 function createTask(title, priority) {
     const task = {
@@ -56,7 +95,9 @@ function createTask(title, priority) {
         createdAt: new Date().toISOString()
     };
     tasks.unshift(task);
+    currentPage = 1;
     saveTasks();
+    emitTasksChanged('create');
 }
 
 function updateTask(id, title, priority) {
@@ -65,12 +106,14 @@ function updateTask(id, title, priority) {
         task.title = title;
         task.priority = priority;
         saveTasks();
+        emitTasksChanged('update');
     }
 }
 
 function deleteTask(id) {
     tasks = tasks.filter(t => t.id !== id);
     saveTasks();
+    emitTasksChanged('delete');
 }
 
 function toggleTask(id) {
@@ -78,6 +121,7 @@ function toggleTask(id) {
     if (task) {
         task.completed = !task.completed;
         saveTasks();
+        emitTasksChanged('toggle');
     }
 }
 
@@ -148,14 +192,6 @@ function createTaskElement(task) {
     return li;
 }
 
-function updateStats() {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
-    statTotal.textContent = total;
-    statCompleted.textContent = completed;
-    statPending.textContent = total - completed;
-}
-
 // Filtros, búsqueda y orden
 function sortTasks(list) {
     const byDate = (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
@@ -187,87 +223,31 @@ function getVisibleTasks() {
     return sortTasks(filtered);
 }
 
+function renderPagination(totalPages) {
+    pagination.classList.toggle('hidden', totalPages <= 1);
+    pageInfo.textContent = 'Página ' + currentPage + ' de ' + totalPages;
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+}
+
 function renderTasks() {
     const visibleTasks = getVisibleTasks();
+    const totalPages = Math.max(1, Math.ceil(visibleTasks.length / PAGE_SIZE));
+    currentPage = Math.min(currentPage, totalPages);
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageTasks = visibleTasks.slice(start, start + PAGE_SIZE);
 
     taskList.innerHTML = '';
-    visibleTasks.forEach(task => taskList.appendChild(createTaskElement(task)));
+    pageTasks.forEach(task => taskList.appendChild(createTaskElement(task)));
 
     emptyMessage.textContent = tasks.length === 0
         ? 'No hay tareas para mostrar.'
         : 'Ninguna tarea coincide con los filtros.';
     emptyMessage.classList.toggle('hidden', visibleTasks.length > 0);
 
-    updateStats();
+    renderPagination(totalPages);
 }
-
-// Eventos
-taskForm.addEventListener('submit', event => {
-    event.preventDefault();
-
-    const title = titleInput.value.trim();
-    const priority = prioritySelect.value;
-    const error = validateTask(title, priority);
-
-    if (error) {
-        showFormError(error);
-        return;
-    }
-
-    if (editingId === null) {
-        createTask(title, priority);
-    } else {
-        updateTask(editingId, title, priority);
-    }
-
-    resetForm();
-    renderTasks();
-});
-
-titleInput.addEventListener('input', clearFormError);
-cancelBtn.addEventListener('click', resetForm);
-
-taskList.addEventListener('click', event => {
-    const button = event.target.closest('button[data-action]');
-    if (!button) return;
-
-    const id = Number(button.closest('.task').dataset.id);
-
-    if (button.dataset.action === 'edit') {
-        startEdit(id);
-    } else if (button.dataset.action === 'delete') {
-        deleteTask(id);
-        if (editingId === id) resetForm();
-        renderTasks();
-    }
-});
-
-taskList.addEventListener('change', event => {
-    if (event.target.dataset.action === 'toggle') {
-        const id = Number(event.target.closest('.task').dataset.id);
-        toggleTask(id);
-        renderTasks();
-    }
-});
-
-searchInput.addEventListener('input', () => {
-    searchTerm = searchInput.value;
-    renderTasks();
-});
-
-sortSelect.addEventListener('change', () => {
-    sortMode = sortSelect.value;
-    renderTasks();
-});
-
-filterButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        currentFilter = button.dataset.filter;
-        filterButtons.forEach(btn => btn.classList.remove('filters__btn--active'));
-        button.classList.add('filters__btn--active');
-        renderTasks();
-    });
-});
 
 // Notificaciones
 let notificationTimer = null;
@@ -286,7 +266,7 @@ function hideNotification() {
     notification.classList.add('hidden');
 }
 
-// LocalStorage
+// localStorage
 function saveTasks() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
@@ -297,13 +277,20 @@ function saveTasks() {
 
 function loadTasks() {
     try {
+        if (localStorage.getItem(VERSION_KEY) !== DATA_VERSION) {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.setItem(VERSION_KEY, DATA_VERSION);
+            return null;
+        }
+
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw === null) return null;
+
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? parsed : null;
     } catch (error) {
-        showNotification('Los datos guardados estaban dañados y se reiniciaron.');
-        return [];
+        showNotification('No se pudieron leer los datos guardados; se cargarán desde el servidor.');
+        return null;
     }
 }
 
@@ -327,8 +314,6 @@ async function fetchTasksFromApi() {
     }));
 }
 
-let apiLoadPending = false;
-
 async function loadFromApi() {
     try {
         const apiTasks = await fetchTasksFromApi();
@@ -344,7 +329,7 @@ async function loadFromApi() {
             true
         );
     }
-    renderTasks();
+    emitTasksChanged('load');
 }
 
 async function init() {
@@ -352,11 +337,11 @@ async function init() {
 
     if (stored !== null) {
         tasks = stored;
-        renderTasks();
+        emitTasksChanged('load');
         return;
     }
 
-    renderTasks();
+    emitTasksChanged('load');
     await loadFromApi();
 }
 
@@ -366,6 +351,85 @@ window.addEventListener('online', () => {
     }
 });
 
+// Eventos de la interfaz
+taskForm.addEventListener('submit', event => {
+    event.preventDefault();
+
+    const title = titleInput.value.trim();
+    const priority = prioritySelect.value;
+    const error = validateTask(title, priority);
+
+    if (error) {
+        showFormError(error);
+        return;
+    }
+
+    if (editingId === null) {
+        createTask(title, priority);
+    } else {
+        updateTask(editingId, title, priority);
+    }
+
+    resetForm();
+});
+
+titleInput.addEventListener('input', clearFormError);
+cancelBtn.addEventListener('click', resetForm);
+
+taskList.addEventListener('click', event => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+
+    const id = Number(button.closest('.task').dataset.id);
+
+    if (button.dataset.action === 'edit') {
+        startEdit(id);
+    } else if (button.dataset.action === 'delete') {
+        deleteTask(id);
+        if (editingId === id) resetForm();
+    }
+});
+
+taskList.addEventListener('change', event => {
+    if (event.target.dataset.action === 'toggle') {
+        const id = Number(event.target.closest('.task').dataset.id);
+        toggleTask(id);
+    }
+});
+
+searchInput.addEventListener('input', () => {
+    searchTerm = searchInput.value;
+    currentPage = 1;
+    renderTasks();
+});
+
+sortSelect.addEventListener('change', () => {
+    sortMode = sortSelect.value;
+    currentPage = 1;
+    renderTasks();
+});
+
+filterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        currentFilter = button.dataset.filter;
+        currentPage = 1;
+        filterButtons.forEach(btn => btn.classList.remove('filters__btn--active'));
+        button.classList.add('filters__btn--active');
+        renderTasks();
+    });
+});
+
+prevBtn.addEventListener('click', () => {
+    if (currentPage > 1) {
+        currentPage--;
+        renderTasks();
+    }
+});
+
+nextBtn.addEventListener('click', () => {
+    currentPage++;
+    renderTasks();
+});
 
 // Inicio
 init();

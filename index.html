@@ -64,11 +64,14 @@
                 <button class="filters__btn" type="button" data-filter="completed">Completadas</button>
             </div>
 
-            <ul class="task-list" id="task-list">
-                <ul class="task-list" id="task-list"></ul>
-            </ul>
+            <ul class="task-list" id="task-list"></ul>
 
             <p class="empty hidden" id="empty-message">No hay tareas para mostrar.</p>
+            <div class="pagination hidden" id="pagination">
+                <button class="btn btn--small" type="button" id="page-prev">Anterior</button>
+                <span class="pagination__info" id="page-info">Página 1 de 1</span>
+                <button class="btn btn--small" type="button" id="page-next">Siguiente</button>
+            </div>
         </section>
     </main>
 

@@ -1,4 +1,4 @@
-/* ===== Variables ===== */
+/* Variables */
 :root {
     --color-primary: #7c1cc5;
     --color-primary-dark: #671edf;
@@ -11,7 +11,7 @@
     --font-main: Arial, Helvetica, sans-serif;
 }
 
-/* ===== Base ===== */
+/* Base */
 * {
     margin: 0;
     padding: 0;
@@ -31,7 +31,7 @@ body {
     display: none !important;
 }
 
-/* ===== Encabezado y pie ===== */
+/* Encabezado y pie */
 .header {
     padding: 30px 20px;
     background-color: var(--color-dark);
@@ -61,7 +61,7 @@ body {
     font-size: 0.85rem;
 }
 
-/* ===== Notificación ===== */
+/* Notificación */
 .notification {
     margin-bottom: 20px;
     padding: 12px 16px;
@@ -71,7 +71,7 @@ body {
     border: 1px solid #fecaca;
 }
 
-/* ===== Dashboard ===== */
+/* Dashboard */
 .dashboard {
     display: flex;
     flex-wrap: wrap;
@@ -107,7 +107,7 @@ body {
     color: var(--color-primary);
 }
 
-/* ===== Paneles ===== */
+/* Paneles */
 .panel {
     margin-bottom: 25px;
     padding: 20px;
@@ -121,7 +121,7 @@ body {
     color: var(--color-primary);
 }
 
-/* ===== Formulario y controles ===== */
+/* Formulario y controles */
 .form {
     display: flex;
     flex-wrap: wrap;
@@ -164,7 +164,7 @@ body {
     min-width: 200px;
 }
 
-/* ===== Botones ===== */
+/* Botones */
 .btn {
     padding: 10px 18px;
     border: none;
@@ -201,7 +201,7 @@ body {
     background-color: #b91c1c;
 }
 
-/* ===== Filtros ===== */
+/* Filtros */
 .filters {
     display: flex;
     gap: 8px;
@@ -232,7 +232,7 @@ body {
     background-color: var(--color-primary-dark);
 }
 
-/* ===== Lista de tareas ===== */
+/* Lista de tareas */
 .task-list {
     list-style: none;
 }
@@ -304,7 +304,7 @@ body {
     color: #64748b;
 }
 
-/* ===== Adaptación a celular ===== */
+/* Adaptación a celular */
 @media (max-width: 600px) {
     .task {
         flex-wrap: wrap;
@@ -313,4 +313,24 @@ body {
     .filters {
         flex-wrap: wrap;
     }
+}
+
+/* Paginación */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.pagination__info {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.btn:disabled,
+.btn:disabled:hover {
+    background-color: #94a3b8;
+    cursor: not-allowed;
 }
