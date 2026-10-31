@@ -1,6 +1,9 @@
 // Estado de la aplicación
 let tasks = [];
 let editingId = null;
+let currentFilter = 'all';
+let searchTerm = '';
+let sortMode = 'date-newest';
 
 // Referencias al DOM
 const taskForm = document.getElementById('task-form');
@@ -14,8 +17,12 @@ const emptyMessage = document.getElementById('empty-message');
 const statTotal = document.getElementById('stat-total');
 const statPending = document.getElementById('stat-pending');
 const statCompleted = document.getElementById('stat-completed');
+const searchInput = document.getElementById('search-input');
+const sortSelect = document.getElementById('sort-select');
+const filterButtons = document.querySelectorAll('.filters__btn');
 
 const PRIORITY_LABELS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
+const PRIORITY_WEIGHT = { alta: 3, media: 2, baja: 1 };
 
 // Validación
 function validateTask(title, priority) {
@@ -142,10 +149,48 @@ function updateStats() {
     statPending.textContent = total - completed;
 }
 
+// Filtros, búsqueda y orden
+function sortTasks(list) {
+    const byDate = (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
+    const byPriority = (a, b) => PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
+
+    switch (sortMode) {
+        case 'date-oldest':
+            return list.sort(byDate);
+        case 'priority-high':
+            return list.sort((a, b) => byPriority(b, a) || byDate(b, a));
+        case 'priority-low':
+            return list.sort((a, b) => byPriority(a, b) || byDate(b, a));
+        default:
+            return list.sort((a, b) => byDate(b, a));
+    }
+}
+
+function getVisibleTasks() {
+    const term = searchTerm.trim().toLowerCase();
+
+    const filtered = tasks
+        .filter(task => {
+            if (currentFilter === 'pending') return !task.completed;
+            if (currentFilter === 'completed') return task.completed;
+            return true;
+        })
+        .filter(task => task.title.toLowerCase().includes(term));
+
+    return sortTasks(filtered);
+}
+
 function renderTasks() {
+    const visibleTasks = getVisibleTasks();
+
     taskList.innerHTML = '';
-    tasks.forEach(task => taskList.appendChild(createTaskElement(task)));
-    emptyMessage.classList.toggle('hidden', tasks.length > 0);
+    visibleTasks.forEach(task => taskList.appendChild(createTaskElement(task)));
+
+    emptyMessage.textContent = tasks.length === 0
+        ? 'No hay tareas para mostrar.'
+        : 'Ninguna tarea coincide con los filtros.';
+    emptyMessage.classList.toggle('hidden', visibleTasks.length > 0);
+
     updateStats();
 }
 
@@ -196,6 +241,25 @@ taskList.addEventListener('change', event => {
         toggleTask(id);
         renderTasks();
     }
+});
+
+searchInput.addEventListener('input', () => {
+    searchTerm = searchInput.value;
+    renderTasks();
+});
+
+sortSelect.addEventListener('change', () => {
+    sortMode = sortSelect.value;
+    renderTasks();
+});
+
+filterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        currentFilter = button.dataset.filter;
+        filterButtons.forEach(btn => btn.classList.remove('filters__btn--active'));
+        button.classList.add('filters__btn--active');
+        renderTasks();
+    });
 });
 
 // Inicio
