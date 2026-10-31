@@ -9,9 +9,84 @@
 <body>
     <header class="header">
         <h1 class="header__title">TaskManager</h1>
+        <p class="header__subtitle">Gestiona tus tareas, incluso sin conexión</p>
     </header>
 
-    <main class="main"></main>
+    <main class="main">
+        <div id="notification" class="notification hidden" role="alert"></div>
+
+        <section class="dashboard" aria-label="Métricas">
+            <article class="stat">
+                <span class="stat__label">Total</span>
+                <span class="stat__value" id="stat-total">0</span>
+            </article>
+            <article class="stat">
+                <span class="stat__label">Pendientes</span>
+                <span class="stat__value" id="stat-pending">0</span>
+            </article>
+            <article class="stat">
+                <span class="stat__label">Completadas</span>
+                <span class="stat__value" id="stat-completed">0</span>
+            </article>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel__title">Nueva tarea</h2>
+            <form class="form" id="task-form" novalidate>
+                <input class="form__input" type="text" id="task-title" placeholder="Título de la tarea">
+                <select class="form__input" id="task-priority">
+                    <option value="alta">Prioridad alta</option>
+                    <option value="media" selected>Prioridad media</option>
+                    <option value="baja">Prioridad baja</option>
+                </select>
+                <button class="btn" type="submit" id="task-submit">Agregar</button>
+                <button class="btn btn--secondary hidden" type="button" id="task-cancel">Cancelar</button>
+            </form>
+            <p class="form__error" id="form-error" role="alert"></p>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel__title">Mis tareas</h2>
+
+            <div class="toolbar">
+                <input class="form__input toolbar__search" type="search" id="search-input" placeholder="Buscar por título...">
+                <select class="form__input" id="sort-select">
+                    <option value="date-newest">Más recientes primero</option>
+                    <option value="date-oldest">Más antiguas primero</option>
+                    <option value="priority-high">Prioridad: alta a baja</option>
+                    <option value="priority-low">Prioridad: baja a alta</option>
+                </select>
+            </div>
+
+            <div class="filters">
+                <button class="filters__btn filters__btn--active" type="button" data-filter="all">Todas</button>
+                <button class="filters__btn" type="button" data-filter="pending">Pendientes</button>
+                <button class="filters__btn" type="button" data-filter="completed">Completadas</button>
+            </div>
+
+            <ul class="task-list" id="task-list">
+                <!-- Ejemplo temporal para ver los estilos; se elimina en el commit 3 -->
+                <li class="task">
+                    <input class="task__check" type="checkbox" aria-label="Marcar como completada">
+                    <div class="task__info">
+                        <span class="task__title">Tarea de ejemplo</span>
+                        <span class="task__meta">Creada: 31/10/2026</span>
+                    </div>
+                    <span class="badge badge--alta">Alta</span>
+                    <div class="task__actions">
+                        <button class="btn btn--small" type="button">Editar</button>
+                        <button class="btn btn--small btn--danger" type="button">Eliminar</button>
+                    </div>
+                </li>
+            </ul>
+
+            <p class="empty hidden" id="empty-message">No hay tareas para mostrar.</p>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 Pincay Mora Ana Belén</p>
+    </footer>
 
     <script src="app.js" defer></script>
 </body>
